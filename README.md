@@ -9,7 +9,6 @@ V simple režimu robot
   - pohybuje vidlemi (lift) nahoru dolu o jednu pozici (trvá cca 8s z pozice na zemi do pozice zvednuto), lift má dole koncový spínač, takže je kalibrován na nabrání palety
   - svítí LED páskem v několika režimech
 
-
     ---=== HELP - Simple Controls ===---
     0       .. STOP ALL (motors, lift, lights)
     w,s,a,d .. forward, backward, left, right
