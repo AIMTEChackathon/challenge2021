@@ -50,7 +50,7 @@ LaDis(distance) .. vzdálenost měřená laserem od zdvihu směrem dopředu, lze
 
 Kromě status message posílá robot i komentáře k přijatým příkazům.
 Např.: 
-/* Command: 'q' .. Lift DOWN */
-/* Motor speed: 50 Lift direction, position: -1, 1024 ODO & Switch: 11111100 ODO_LeftRight(-8,-14) La(ser)Dis(tance): 27 */
+	/* Command: 'q' .. Lift DOWN */
+	/* Motor speed: 50 Lift direction, position: -1, 1024 ODO & Switch: 11111100 ODO_LeftRight(-8,-14) La(ser)Dis(tance): 27 */
 
 
