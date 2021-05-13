@@ -19,7 +19,7 @@ AF_DCMotor motorL(2);
 // 5V DC power for stepper motor on M3
 AF_DCMotor stepperDC(3);
 
-#define MIN_MOTOR_SPEED 70
+#define MIN_MOTOR_SPEED 50
 #define MAX_MOTOR_SPEED 150
 #define MAX_STEPPER_DC 160 // setSpeed(90) reduces the battery 12.14V to 5.07V for stepper motor
 int demoMotorSpeed = 0;
@@ -360,23 +360,62 @@ void setupLaDis() {
   laDis.startContinuous(50);
 }
 
+#define HELP_00 "  See the readme.md for more advanced controls."
+/*
+ * Commented out, as it takes too much memory.
+ * 
+#define HELP_01 "  ---=== HELP - Simple Controls ===---"
+#define HELP_02 "  0       .. STOP ALL (motors, lift, lights)"
+#define HELP_03 "  w,s,a,d .. forward, backward, left, right"
+#define HELP_04 "  +-      .. increase/decrease DC motor speed"
+#define HELP_05 "  e,q     .. lift one floor UP/DOWN"
+#define HELP_06 "  <space> .. STOP all motors (DC L/R, stepper)"
+#define HELP_07 "  1,2,3,4 .. light modes [POLICE, GREEN FLASH, BRIGHT WHITE, BLUE BIN 0xAA]"
+#define HELP_08 "  5       .. lights off"
+#define HELP_09 "  l,k     .. La(ser)Dis(tance) Measurement ON/OFF"
+#define HELP_10 "  i       .. toggle debug lights"
+#define HELP_11 ""
+#define HELP_12 "  ---=== HELP - Advanced Controls ===---"
+#define HELP_13 "  #STOP#  .. STOP ALL (motors, lift, lights)"
+#define HELP_14 "  #M([F|B],[F|B],0x00,0x00)#  .. Set motors direction (F/B) and speed (HEX 0x00 .. 0xFF)"
+#define HELP_15 "                                 M(leftDir,rightDir,leftSpeed,rightSpeed)"
+#define HELP_16 "                                 The speed is clamped to a range min = 50, max = 150."
+#define HELP_17 "                                 M(F,B,0x50,0xFF) .. left motor FORWARD speed 80, right motor BACKWARD speed 255"
+#define HELP_18 ""
+#define HELP_19 ""
+*/
 void info() {
-  Serial.println("/*");
-  Serial.println("  HELP - Simple Controls:");
-  Serial.println("  0 .. STOP ALL (motors, lift, lights)");
-  Serial.println("  wsad .. forward, backward, left, right");
-  Serial.println("  +- .. increase/decrease DC motor speed");
-  Serial.println("  eq .. lift one floor UP/DOWN");
-  Serial.println("  <space> .. STOP all motors (DC L/R, stepper)");
-  Serial.println("  1234 .. light modes [POLICE, GREEN FLASH, BRIGHT WHITE, BLUE BIN 0xAA]");
-  Serial.println("  5 .. lights off");
-  Serial.println("  l .. La(ser)Dis(tance) measurement, ODO, switch");
-  Serial.println("  x .. demo");
-  Serial.println("*/");
+  Serial.println("/* ");
+  Serial.println(HELP_00);
+  /*
+  Serial.println(HELP_01);
+  Serial.println(HELP_02);
+  Serial.println(HELP_03);
+  Serial.println(HELP_04);
+  Serial.println(HELP_05);
+  Serial.println(HELP_06);
+  Serial.println(HELP_07);
+  Serial.println(HELP_08);
+  Serial.println(HELP_09);
+  Serial.println(HELP_10);
+  Serial.println(HELP_11);
+  Serial.println(HELP_12);
+  Serial.println(HELP_13);
+  Serial.println(HELP_14);
+  Serial.println(HELP_15);
+  Serial.println(HELP_16);
+  Serial.println(HELP_17);
+  Serial.println(HELP_18);
+  Serial.println(HELP_19);
+  */
+  Serial.println(" */");
 }
 
-#define STATUS_REFRESH 100 // status refresh period in ms
-long lTime;
+#define STATUS_REFRESH 100 // Status report refresh period in ms
+#define LADIS_REFRESH 200 // LaDis refresh period in ms
+
+long lTimestamp = 0; // last timestamp
+long laDisTimestamp = 0;
 
 void setup() {
   Serial.begin(9600); // open the serial port at 9600 bps
@@ -389,7 +428,7 @@ void setup() {
   setupMotors();
   setupStepper();
   delay(500);
-  lTime = millis();
+  lTimestamp = millis();
   //startDemo();
 }
 
@@ -408,8 +447,10 @@ String message = "";
 byte ledMode = SOLID;
 uint32_t ledColor;
 byte ledValue;
+bool debugLights = false;
 int liftDirection = 0;
 int laserDistance = 0;
+bool laDisEnabled = false;
 byte sensorODO = 0;
 byte lastODO = 0;
 int odoCntL = 0;
@@ -438,30 +479,45 @@ void sayStatus() {
   Serial.print("/*");
   Serial.print(" Motor speed: ");
   Serial.print(motorSpeed);
-  Serial.print(" Lift direction: ");
+  
+  Serial.print(" Lift direction, position: ");
   Serial.print(liftDirection);
+  
+  Serial.print(", ");
+  Serial.print(liftPosition);
+  
   Serial.print(" ODO & Switch: ");
   Serial.print(sensorODO, BIN);
+
+  Serial.print(" ODO_LeftRight(");
+  Serial.print(odoCntL);
+  Serial.print(",");
+  Serial.print(odoCntR);
+  Serial.print(")");
+  
   Serial.print(" La(ser)Dis(tance): ");
   Serial.print(laserDistance);
+  
   Serial.println(" */");
 }
 
 void sayStatusBIN() {
-  Serial.print("m");
-  Serial.print(motorSpeed, HEX);
-  Serial.print(" l");
+  Serial.print("Lift(");
   Serial.print(liftDirection, DEC);
-  Serial.print(" f");
+  Serial.print(",");
   Serial.print(liftPosition, DEC);
-  Serial.print(" s");
-  Serial.print(sensorODO, BIN);
-  Serial.print(" o");
-  Serial.print(odoCntR);
-  Serial.print(", ");
+  Serial.print(")");
+  
+  Serial.print(" ODO(");
   Serial.print(odoCntL);
-  Serial.print(" d");
-  Serial.print(laserDistance, HEX);
+  Serial.print(",");
+  Serial.print(odoCntR);
+  Serial.print(")");
+  
+  Serial.print(" LaDis(");
+  Serial.print(laserDistance, DEC);
+  Serial.print(")");
+  
   Serial.println();
 }
 
@@ -665,6 +721,13 @@ void loopHandler() {
       lightsHandler();
       liftHandler();
       handleODO();
+      if ((laDisEnabled) && ((lTimestamp - laDisTimestamp) > LADIS_REFRESH)) { // do not read the distance too often
+        laserDistance = laDis.read();
+        laDisTimestamp = lTimestamp;
+      }
+      if (debugLights) {
+        lightBinary(stripFront, RED, sensorODO);
+      }
       break;
     }
     /*
@@ -682,17 +745,28 @@ void loopHandler() {
       message = "Drive mode Robot FORWARD/BACKWARD/LEFT/RIGHT";
       break;
     }
-    */
     case 140: { // Laser Distance Sensor
-      //handleODO();
-      laserDistance = laDis.read();
+      handleODO();
+      if ((laDisEnabled) && ((lTimestamp - laDisTimestamp) > LADIS_REFRESH)) { // do not read the distance too often
+        laserDistance = laDis.read();
+        laDisTimestamp = lTimestamp;
+      }
       lightBinary(stripFront, RED, sensorODO);
     }
+    */
   }
 }
 
 bool cmdReading = false;
 String cmdStr = "";
+
+int StrToHex(char str[]) {
+  return (int) strtol(str, 0, 16);
+}
+
+int charToDir(char ch) {
+  return ch == 'F' ? FORWARD : BACKWARD;
+}
 
 void loopController() {
   if (Serial.available() > 0) {
@@ -718,7 +792,20 @@ void loopController() {
       say(cmdStr);
       return;
     }*/
+    if (cmdStr[0] == 'M') {
+      // #M(F,B,0x10,0x10)#
+      // #M(F,F,0xFF,0xFF)#
+      // #M(B,B,0x50,0x50)#
+      char temp[3];
+      temp[2] = '\0';
+      strncpy(temp, &cmdStr[8], 2);
+      int leftSpeed = (int) strtol(temp, 0, 16);
+      strncpy(temp, &cmdStr[13], 2);
+      int rightSpeed = (int) strtol(temp, 0, 16);
+      setLRMotors(charToDir(cmdStr[2]), charToDir(cmdStr[4]), leftSpeed, rightSpeed);   
+    }
     if (cmd == '0' || cmdStr == "STOP") {
+      
       sayCmd(cmd, "Stop ALL");
       shutdownAll();
       liftDirection = 0;
@@ -759,10 +846,6 @@ void loopController() {
       state = 100;
       shutdownLights();
     }
-    if (cmd == 'l') {
-      sayCmd(cmd, "Laser Distance Sensor");
-      state = 140;
-    }
     if (cmd == '+' ) {
       motorSpeed = clampMotorSpeed(motorSpeed + 10);      
     }
@@ -799,10 +882,28 @@ void loopController() {
       state = 100;
       setLRMotors(FORWARD, BACKWARD, motorSpeed);
     }
+    if (cmd == 'l') {
+      sayCmd(cmd, "Laser Distance Sensor ENABLED");
+      state = 100;
+      laDisEnabled = true;
+    }
+    if (cmd == 'k') {
+      sayCmd(cmd, "Laser Distance Sensor DISABLED");
+      state = 100;
+      laDisEnabled = false;
+    }
+    if (cmd == 'i') {
+      sayCmd(cmd, "Toggle Debug LIGHTS");
+      state = 100;
+      debugLights = !debugLights;
+    }
     if (cmd == 'x') {
       sayCmd(cmd, "DEMO mode");
       shutdownAll();
       startDemo();
+    }
+    if (!cmdReading) {
+    cmdStr = "";
     }
     sayStatus();  
   }
@@ -829,8 +930,8 @@ void loop() {
   }
 
   long t = millis();
-  if ((t - lTime) > STATUS_REFRESH) {
+  if ((t - lTimestamp) > STATUS_REFRESH) {
     sayStatusBIN();
-    lTime = t;
+    lTimestamp = t;
   }
 }
