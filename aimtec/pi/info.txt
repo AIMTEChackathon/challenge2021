@@ -1,0 +1,13 @@
+lsusb
+ls /dev/tty*
+/home/pi/RetroPie/BIOS/robot/*
+\\retropie\bios\robot\joy_serial.py 
+sudo apt-get install python3-pip
+sudo pip3 install pyserial
+python3 joy_serial.py 
+
+https://gist.github.com/rdb/8864666
+https://classes.engineering.wustl.edu/ese205/core/index.php?title=Serial_Communication_between_Raspberry_Pi_%26_Arduino
+https://raspberrypi.stackexchange.com/questions/74742/python-serial-serial-module-not-found-error
+https://www.pantechsolutions.net/blog/installing-library-packages-in-raspberry-pi/
+
